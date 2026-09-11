@@ -76,8 +76,36 @@ interface Hierarchy {
  * A node is present in the filtered hierarchy iff its node ID passes the predicate and all of its ancestors pass it as well.
  */
 fun Hierarchy.filter(nodeIdPredicate: (Int) -> Boolean): Hierarchy {
-  // todo implement
-  return ArrayBasedHierarchy(IntArray(0), IntArray(0))
+  val resultIds = ArrayList<Int>()
+  val resultDepths = ArrayList<Int>()
+
+  // For each depth we've descended into, keptByDepth remembers whether the node
+  // we're currently under at that depth passed. So if we're looking at a node at
+  // depth d, keptByDepth[d - 1] tells us whether its parent got kept.
+  val keptByDepth = ArrayList<Boolean>()
+
+  for (i in 0 until size) {
+    val d = depth(i)
+
+    // depth went back down (or stayed put), meaning we've left whatever subtree
+    // we were in - anything we tracked for deeper levels is stale now
+    while (keptByDepth.size > d) {
+      keptByDepth.removeAt(keptByDepth.size - 1)
+    }
+
+    val parentKept = d == 0 || keptByDepth[d - 1]
+    val kept = parentKept && nodeIdPredicate(nodeId(i))
+
+    if (kept) {
+      resultIds.add(nodeId(i))
+      resultDepths.add(d)
+    }
+
+    check(keptByDepth.size == d)
+    keptByDepth.add(kept)
+  }
+
+  return ArrayBasedHierarchy(resultIds.toIntArray(), resultDepths.toIntArray())
 }
 
 class ArrayBasedHierarchy(
